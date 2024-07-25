@@ -155,6 +155,10 @@ for i in tqdm.tqdm(range(len(idxs))):
     outputs.extend(outputFrame)
     outputs.append(inputs[2].squeeze(0).cpu().data)
 
+# Add the last frame if it's not already included
+if len(outputs) < len(frames):
+    outputs.append(frames[-1])
+
 new_video = [make_image(im_) for im_ in outputs]
 
 write_video_cv2(new_video , output_video , args.output_fps , (resizes[1] , resizes[0]))
