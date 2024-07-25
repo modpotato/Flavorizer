@@ -13,8 +13,8 @@ import os
 #                    format='%(asctime)s - %(levelname)s - %(message)s')
 #
 # Redirect stdout and stderr to the log file
-sys.stdout = open('interpolate.log', 'a')
-sys.stderr = open('interpolate.log', 'a')
+#sys.stdout = open('interpolate.log', 'a')
+#sys.stderr = open('interpolate.log', 'a')
 
 import torchvision
 from PIL import Image
@@ -167,5 +167,5 @@ write_video_cv2(new_video , output_video , args.output_fps , (resizes[1] , resiz
 #logging.info("AVI video created: %s", output_video)
 
 # Close the redirected stdout and stderr
-sys.stdout.close()
-sys.stderr.close()
+#sys.stdout.close()
+#sys.stderr.close()
