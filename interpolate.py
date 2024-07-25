@@ -5,6 +5,16 @@ import cv2
 import pdb
 import time
 import sys
+import logging
+import os
+
+## Set up logging at the beginning of the script
+#logging.basicConfig(filename='interpolate.log', level=logging.INFO, 
+#                    format='%(asctime)s - %(levelname)s - %(message)s')
+#
+# Redirect stdout and stderr to the log file
+sys.stdout = open('interpolate.log', 'a')
+sys.stderr = open('interpolate.log', 'a')
 
 import torchvision
 from PIL import Image
@@ -40,15 +50,12 @@ input_ext = args.input_ext
 from os import path
 
 if not args.is_folder and not path.exists(input_video):
-    print("Invalid input file path!")
+#    logging.info("Invalid input file path!")
     exit()
     
 if args.is_folder and not path.exists(input_video):
-    print("Invalid input directory path!")
+#    logging.info("Invalid input directory path!")
     exit()
-
-if args.output_ext != ".avi":
-    print("Currently supporting only writing to avi. Try using ffmpeg for conversion to mp4 etc.")
 
 output_video = args.output_video
 
@@ -96,16 +103,16 @@ def make_image(img):
 def files_to_videoTensor(path , downscale=1.):
     from PIL import Image
     files = sorted(os.listdir(path))
-    print(len(files))
+#    logging.info(len(files))
     images = [torch.Tensor(np.asarray(Image.open(os.path.join(input_video , f)))).type(torch.uint8) for f in files]
-    print(images[0].shape)
+#    logging.info(images[0].shape)
     videoTensor = torch.stack(images)
     return videoTensor
 
 def video_to_tensor(video):
     videoTensor, _, md = read_video(video, pts_unit='sec')
     fps = md["video_fps"]
-    print(fps)
+#    logging.info(fps)
     return videoTensor
 
 def video_transform(videoTensor , downscale=1):
@@ -117,7 +124,7 @@ def video_transform(videoTensor , downscale=1):
     videoTensor = transforms(videoTensor)
     
     # resizes = 720,1280
-    print("Resizing to %dx%d"%(resizes[0] , resizes[1]) )
+#    logging.info("Resizing to %dx%d"%(resizes[0] , resizes[1]) )
     return videoTensor , resizes
 
 if args.is_folder:
@@ -127,7 +134,7 @@ else:
 
 idxs = torch.Tensor(range(len(videoTensor))).type(torch.long).view(1,-1).unfold(1,size=nbr_frame,step=1).squeeze(0)
 videoTensor , resizes = video_transform(videoTensor , args.downscale)
-print("Video tensor shape is , " , videoTensor.shape)
+#logging.info("Video tensor shape is , %s", videoTensor.shape)
 
 frames = torch.unbind(videoTensor , 1)
 n_inputs = len(frames)
@@ -152,7 +159,9 @@ new_video = [make_image(im_) for im_ in outputs]
 
 write_video_cv2(new_video , output_video , args.output_fps , (resizes[1] , resizes[0]))
 
-print("Writing to", output_video.split(".")[0] + ".mp4")
-os.system('ffmpeg -hide_banner -loglevel warning -i %s %s' % (output_video, output_video.split(".")[0] + ".mp4"))
-os.remove(output_video)
-print("MP4 video created:", output_video.split(".")[0] + ".mp4")
+# Remove the MP4 conversion
+#logging.info("AVI video created: %s", output_video)
+
+# Close the redirected stdout and stderr
+sys.stdout.close()
+sys.stderr.close()

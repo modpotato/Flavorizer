@@ -3,9 +3,11 @@ from discord import app_commands
 import asyncio
 import tempfile
 import os
-import subprocess
 import private
-import base64
+import pathlib
+
+# Create the output directory if it doesn't exist
+pathlib.Path("./data/flavorized").mkdir(parents=True, exist_ok=True)
 
 class InterpolateClient(discord.Client):
     def __init__(self):
@@ -21,65 +23,86 @@ class InterpolateClient(discord.Client):
 client = InterpolateClient()
 
 @client.tree.command()
-@app_commands.describe(video="The video file to interpolate")
-async def interpolate(interaction: discord.Interaction, video: discord.Attachment):
+@app_commands.describe(video="The video file to flavorize")
+async def flavorize(interaction: discord.Interaction, video: discord.Attachment):
     await interaction.response.defer()
 
     if not video.filename.lower().endswith(('.gif', '.mp4')):
         await interaction.followup.send("Please attach a GIF or MP4 file.")
         return
 
-    # Download the video
-    video_data = await video.read()
-    
-    # Save the video to a temporary file
+    # Download the video to a temporary file
     with tempfile.NamedTemporaryFile(suffix='_input' + os.path.splitext(video.filename)[1], delete=False) as tmp_file:
-        tmp_file.write(video_data)
+        await video.save(tmp_file.name)
         input_path = tmp_file.name
 
-    # Set output path
-    output_path = os.path.splitext(input_path)[0] + '_interpolated.mp4'
+    # Set output path in ./data/flavorized
+    output_filename = f"flavorized_{os.path.splitext(video.filename)[0]}.avi"
+    output_path = os.path.abspath(os.path.join("./data/flavorized", output_filename))
 
     # Call the interpolate script
-    interpolate_command = [
+    flavorize_command = [
         'python', 'interpolate.py',
         '--input_video', input_path,
         '--output_video', output_path,
         '--factor', '4',
-        '--output_ext', '.mp4',
         '--load_model', 'D:/FLAVR_4x.pth',
         '--input_ext', os.path.splitext(video.filename)[1]
     ]
 
     try:
+        # Run the interpolate script asynchronously
         process = await asyncio.create_subprocess_exec(
-            *interpolate_command,
+            *flavorize_command,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
-
         stdout, stderr = await process.communicate()
 
         if process.returncode != 0:
-            error_message = stderr.decode()
-            await interaction.followup.send(f"Error during interpolation: {error_message}")
+            await interaction.followup.send(f"Error during flavorization: {stderr.decode()}")
             return
 
         # Check if the output file exists
         if not os.path.exists(output_path):
-            await interaction.followup.send("Interpolation completed, but the output file was not created. Please check the interpolate.py script.")
+            await interaction.followup.send("Flavorization completed, but the output file was not created. Please check the interpolate.py script.")
             return
 
-        # Send the interpolated MP4
-        await interaction.followup.send(file=discord.File(output_path, filename='interpolated.mp4'))
+        # Convert AVI to MP4
+        mp4_output_filename = f"flavorized_{os.path.splitext(video.filename)[0]}.mp4"
+        mp4_output_path = os.path.abspath(os.path.join("./data/flavorized", mp4_output_filename))
+        ffmpeg_command = [
+            'ffmpeg',
+            '-i', output_path,
+            '-c:v', 'libx264',
+            '-crf', '23',
+            '-preset', 'medium',
+            '-c:a', 'aac',
+            '-b:a', '128k',
+            mp4_output_path
+        ]
+
+        process = await asyncio.create_subprocess_exec(
+            *ffmpeg_command,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await process.communicate()
+
+        if process.returncode != 0:
+            await interaction.followup.send(f"Error during MP4 conversion: {stderr.decode()}")
+            return
+
+        # Send the flavorized MP4
+        await interaction.followup.send(file=discord.File(mp4_output_path, filename=mp4_output_filename))
 
     except Exception as e:
         await interaction.followup.send(f"An error occurred: {str(e)}")
 
     finally:
-        # Clean up temporary files
+        # Clean up temporary input file and AVI output
         os.remove(input_path)
-        if os.path.exists(output_path):
-            os.remove(output_path)
+        os.remove(output_path)
+        os.remove(mp4_output_path)
 
 client.run(private.token)
