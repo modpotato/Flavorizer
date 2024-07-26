@@ -1,6 +1,6 @@
 # Discord Bot
 
-This Discord bot is built using the discord.py library and includes commands for flavorizing text and splitting audio.
+This Discord bot is built using the discord.py library and includes commands for flavorizing GIFs (frame interpolating) and splitting audio.
 
 ## Features
 
