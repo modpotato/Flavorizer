@@ -7,8 +7,8 @@ import demucs.api
 import zipfile
 from mutagen.mp3 import MP3
 
-@app_commands.command()
-@app_commands.describe(audio="The audio file to split into stems")
+@app_commands.command(description="Split an audio file into separate stems (vocals, drums, bass, and other)")
+@app_commands.describe(audio="The MP3 audio file to split into stems (max 10MB, 4 minutes)")
 async def split_audio(interaction: discord.Interaction, audio: discord.Attachment):
     print(f"Received split_audio command from {interaction.user.name} with file: {audio.filename}")
     await interaction.response.defer()

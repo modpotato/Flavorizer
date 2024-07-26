@@ -8,8 +8,13 @@ import pathlib
 # Create the output directory if it doesn't exist
 pathlib.Path("./data/flavorized").mkdir(parents=True, exist_ok=True)
 
-@app_commands.command()
-@app_commands.describe(video="The video file to flavorize")
+@app_commands.command(
+    name="flavorize",
+    description="Enhance a video or GIF by increasing its frame rate using AI interpolation."
+)
+@app_commands.describe(
+    video="The video or GIF file to enhance (must be a .gif or .mp4 file)"
+)
 async def flavorize(interaction: discord.Interaction, video: discord.Attachment):
     print(f"Received flavorize command from {interaction.user.name} with file: {video.filename}")
     await interaction.response.defer()
@@ -37,7 +42,8 @@ async def flavorize(interaction: discord.Interaction, video: discord.Attachment)
         '--output_video', output_path,
         '--factor', '4',
         '--load_model', 'D:/FLAVR_4x.pth',
-        '--input_ext', os.path.splitext(video.filename)[1]
+        '--input_ext', os.path.splitext(video.filename)[1],
+        '--preserve_fps'  # Add this line to preserve the original fps
     ]
 
     try:

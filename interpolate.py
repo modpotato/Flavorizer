@@ -42,6 +42,7 @@ parser.add_argument("--downscale" , type=float , help="Downscale input res. for 
 parser.add_argument("--output_fps" , type=int , help="Target FPS" , default=30)
 parser.add_argument("--is_folder" , action="store_true" )
 parser.add_argument("--output_video", type=str, required=True, help="Path to output video")
+parser.add_argument("--preserve_fps", action="store_true", help="Preserve original video fps")
 args = parser.parse_args()
 
 input_video = args.input_video
@@ -129,8 +130,10 @@ def video_transform(videoTensor , downscale=1):
 
 if args.is_folder:
     videoTensor = files_to_videoTensor(input_video , args.downscale)
+    original_fps = args.output_fps  # Default to output_fps for folder input
 else:
-    videoTensor = video_to_tensor(input_video)
+    videoTensor, _, md = read_video(input_video, pts_unit='sec')
+    original_fps = md["video_fps"]
 
 idxs = torch.Tensor(range(len(videoTensor))).type(torch.long).view(1,-1).unfold(1,size=nbr_frame,step=1).squeeze(0)
 videoTensor , resizes = video_transform(videoTensor , args.downscale)
@@ -161,7 +164,13 @@ if len(outputs) < len(frames):
 
 new_video = [make_image(im_) for im_ in outputs]
 
-write_video_cv2(new_video , output_video , args.output_fps , (resizes[1] , resizes[0]))
+# Determine the output fps
+if args.preserve_fps:
+    output_fps = original_fps * args.factor
+else:
+    output_fps = args.output_fps
+
+write_video_cv2(new_video , output_video , output_fps , (resizes[1] , resizes[0]))
 
 # Remove the MP4 conversion
 #logging.info("AVI video created: %s", output_video)
